@@ -39,7 +39,7 @@ type resp struct {
 	QuotaRemaining int  `json:"quota_remaining"`
 }
 
-var re = regexp.MustCompile(`^stackoverflow (.+)$`)
+var re = regexp.MustCompile(`^stackoverflow(\w+) (.+)$`)
 
 func defaultAddr() string {
 	port := os.Getenv("PORT")
@@ -56,51 +56,53 @@ func main() {
 
 	r := gin.Default()
 
-	r.POST("/", func(c *gin.Context) {
+	r.POST("/:site", func(c *gin.Context) {
+		site := c.Params.ByName("site")
+		if site == "" {
+			site = "stackoverflow"
+		}
 		var status lingr.Status
-		if c.EnsureBody(&status) {
-			urls := ""
-			for _, event := range status.Events {
-				message := event.Message
-				if message == nil {
-					continue
-				}
-				if !re.MatchString(message.Text) {
-					continue
-				}
-				question := re.FindStringSubmatch(message.Text)[1]
-				params := url.Values{}
-				params.Add("intitle", question)
-				params.Add("site", "stackoverflow")
-				params.Add("sort", "activity")
-				params.Add("order", "desc")
-				res, err := http.Get("https://api.stackexchange.com/2.2/search?" + params.Encode())
-				println("https://api.stackexchange.com/2.2/search?" + params.Encode())
-				if err != nil {
-					println(err.Error())
-					continue
-				}
-				defer res.Body.Close()
-				var resp resp
-				if err := json.NewDecoder(res.Body).Decode(&resp); err != nil {
-					println(err.Error())
-					continue
-				}
-				println(len(resp.Items))
-				for _, item := range resp.Items {
-					println(item.Link)
-					s := fmt.Sprintf("%s\n%s\n", item.Title, item.Link)
-					if len(urls+s) > 1000 {
-						break
-					}
-					urls += s
-				}
-			}
-			println(urls)
-			c.String(200, urls)
+		if !c.EnsureBody(&status) {
 			return
 		}
-		c.String(200, "")
+		urls := ""
+		for _, event := range status.Events {
+			message := event.Message
+			if message == nil {
+				continue
+			}
+			if !re.MatchString(message.Text) {
+				println("skip", message.Text)
+				continue
+			}
+			println("fooo")
+			question := re.FindStringSubmatch(message.Text)[1]
+			params := url.Values{}
+			params.Add("intitle", question)
+			params.Add("site", site)
+			params.Add("sort", "activity")
+			params.Add("order", "desc")
+			res, err := http.Get("https://api.stackexchange.com/2.2/search?" + params.Encode())
+			if err != nil {
+				println(err.Error())
+				continue
+			}
+			defer res.Body.Close()
+			var resp resp
+			if err := json.NewDecoder(res.Body).Decode(&resp); err != nil {
+				println(err.Error())
+				continue
+			}
+			for _, item := range resp.Items {
+				s := fmt.Sprintf("%s\n%s\n", item.Title, item.Link)
+				if len(urls+s) > 1000 {
+					break
+				}
+				urls += s
+			}
+		}
+		c.String(200, urls)
+		return
 	})
 	r.Run(*addr)
 }
