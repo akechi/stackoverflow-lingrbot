@@ -59,10 +59,7 @@ func main() {
 	r.GET("/", func(c *gin.Context) {
 		c.String(200, "")
 	})
-	r.POST("/", func(c *gin.Context) {
-		c.String(200, "")
-	})
-	r.POST("/:site", func(c *gin.Context) {
+	f := func(c *gin.Context) {
 		site := c.Params.ByName("site")
 		if site == "" {
 			site = "stackoverflow"
@@ -87,6 +84,7 @@ func main() {
 			params.Add("sort", "activity")
 			params.Add("order", "desc")
 			res, err := http.Get("https://api.stackexchange.com/2.2/search?" + params.Encode())
+			println("https://api.stackexchange.com/2.2/search?" + params.Encode())
 			if err != nil {
 				println(err.Error())
 				continue
@@ -98,7 +96,12 @@ func main() {
 				continue
 			}
 			for _, item := range resp.Items {
-				s := fmt.Sprintf("%s\n%s\n", item.Title, item.Link)
+				u := item.Link
+				if len(u) > 300 {
+					u = fmt.Sprintf("http://%s.com/q/%d", site, item.QuestionID)
+				}
+				s := fmt.Sprintf("%s\n%s\n", item.Title, u)
+				println(s)
 				if len(urls+s) > 1000 {
 					break
 				}
@@ -107,6 +110,8 @@ func main() {
 		}
 		c.String(200, urls)
 		return
-	})
+	}
+	r.POST("/", f)
+	r.POST("/:site", f)
 	r.Run(*addr)
 }
