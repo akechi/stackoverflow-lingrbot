@@ -56,7 +56,7 @@ func main() {
 
 	r := gin.Default()
 
-	r.GET("/:site", func(c *gin.Context) {
+	r.POST("/", func(c *gin.Context) {
 		c.String(200, "")
 	})
 	r.POST("/:site", func(c *gin.Context) {
