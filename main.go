@@ -39,7 +39,7 @@ type resp struct {
 	QuotaRemaining int  `json:"quota_remaining"`
 }
 
-var re = regexp.MustCompile(`^stackoverflow(\w+) (.+)$`)
+var re = regexp.MustCompile(`^stackoverflow(?:\w+) (.+)$`)
 
 func defaultAddr() string {
 	port := os.Getenv("PORT")
@@ -56,6 +56,9 @@ func main() {
 
 	r := gin.Default()
 
+	r.GET("/:site", func(c *gin.Context) {
+		c.String(200, "")
+	})
 	r.POST("/:site", func(c *gin.Context) {
 		site := c.Params.ByName("site")
 		if site == "" {
@@ -72,10 +75,8 @@ func main() {
 				continue
 			}
 			if !re.MatchString(message.Text) {
-				println("skip", message.Text)
 				continue
 			}
-			println("fooo")
 			question := re.FindStringSubmatch(message.Text)[1]
 			params := url.Values{}
 			params.Add("intitle", question)
